@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Data & Models (Gestiti da DVC)
+data/raw/
+data/processed/
+weights/*.pth
+weights/*.engine
+
+# ML Tools
+.ipynb_checkpoints/
+outputs/                # Cartella generata da Hydra per ogni run
+wandb/                  # Log locali di W&B
