@@ -2,3 +2,7 @@
     remote = myremote
 ['remote "origin"']
     url = s3://dvc
+['remote "myremote"']
+    url = https://dagshub.com/GiuliaAuri/Surgical-Copilot.dvc
+['remote "upstream_data"']
+    url = https://dagshub.com/minicla03/Surgical-Copilot.dvc
