@@ -12,5 +12,5 @@ stages:
       - data/raw
       - src/surgical_copilot/bench/benchmarking.py
     metrics:
-      - metrics.json:
+      - reports/benchmark/metrics.json:
           cache: false
