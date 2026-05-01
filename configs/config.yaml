@@ -1,7 +1,8 @@
 defaults:
   - model: unet
   - data: hemoset
-  - robustness: robustness
+  #- robustness: robustness
+  - trainer: default
   - _self_
 
 seed: 42
@@ -11,4 +12,4 @@ debug: false
 logging:
   project: surgical-copilot
   wandb_enabled: true
-  mlflow_enabled: true
+  #mlflow_enabled: true

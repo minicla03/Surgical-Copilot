@@ -6,11 +6,20 @@ stages:
     outs:
       - data/raw
 
-  benchmarking:
-    cmd: python src/surgical_copilot/bench/benchmarking.py
+  train_SOTA:
+    cmd: python src/surgical_copilot/train.py --cofig configs/config.yaml
     deps:
       - data/raw
-      - src/surgical_copilot/bench/benchmarking.py
-    metrics:
-      - reports/benchmark/metrics.json:
-          cache: false
+      - src/surgical_copilot/
+      - configs/
+    outs:
+      - models/${model.name}.pth
+
+  benchmark:
+    cmd: python src/surgical_copilot/benchmark.py model=${model.name}
+    deps:
+      - models/
+      - data/raw
+      - src/surgical_copilot/benchmark/
+    outs:
+      - reports/${model.name}_benchmark.json
