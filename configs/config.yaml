@@ -1,10 +1,11 @@
 defaults:
-  - model: unet
+  - model: models
   - data: hemoset
   #- robustness: robustness
   - trainer: default
   - _self_
 
+models_to_bench: ["unet", "swin", "resunet"]
 seed: 42
 device: cuda
 debug: false
@@ -12,4 +13,3 @@ debug: false
 logging:
   project: surgical-copilot
   wandb_enabled: true
-  #mlflow_enabled: true

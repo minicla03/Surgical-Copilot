@@ -1,6 +1,6 @@
 # Lifecycle of the training process
 trainer:
-  max_epochs: 1
+  max_epochs: 100
   val_interval: 1
   save_checkpoint: True
   num_workers: 4

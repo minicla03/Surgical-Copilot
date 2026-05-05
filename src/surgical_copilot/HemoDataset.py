@@ -33,7 +33,6 @@ class HemosetDataSet:
             
             frame_name = img_path.stem 
 
-            # Costruiamo il path atteso della label.
             mask_path_png = self.root_dir / patient_id / "labels" / "labels" /f"{frame_name}_mask.png"
 
             if mask_path_png.exists():
@@ -73,7 +72,6 @@ class HemosetDataSet:
         train_patients = patients[:split_idx]
         val_patients = patients[split_idx:]
 
-        # 3. Costruzione delle liste piatte contenenti i dizionari frame/mask
         train_files = []
         for p in train_patients:
             train_files.extend(self.patient_data[p])
@@ -82,12 +80,10 @@ class HemosetDataSet:
         for p in val_patients:
             val_files.extend(self.patient_data[p])
 
-        # 4. Shuffle finale dei frame di training per stabilizzare i gradienti nell'epoca
         random.shuffle(train_files)
 
-        print(f"[*] Split applicato a livello subject: {len(train_patients)} train / {len(val_patients)} val.")
+        print(f"[*] Split: {len(train_patients)} train / {len(val_patients)} val.")
 
-        # Accodamento delle perturbazioni di train se presenti
         train_compose = Compose([self.base_transforms, train_transforms]) if train_transforms else self.base_transforms
 
         train_ds = CacheDataset(train_files, transform=train_compose, cache_rate=cache_rate)
@@ -104,6 +100,7 @@ class HemosetDataSet:
 
         val_loader = DataLoader(
             val_ds,
+            transform=self.base_transforms,
             batch_size=batch_size,
             shuffle=False,
             num_workers=num_workers,

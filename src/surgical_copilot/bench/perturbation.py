@@ -20,9 +20,8 @@ class RandSpecularReflectiond(MapTransform):
         for key in self.key_iterator(d):
             if torch.rand(1).item() < self.prob:
                 x = d[key]
-                mask = (torch.rand_like(x) < self.intensity)
-                d[key] = x.clone()
-                d[key][mask] = x.max() 
+                mask = (torch.rand_like(x[0:1, ...]) < (self.intensity / 100)) # create light reflection mask
+                d[key] = torch.where(mask > 0.5, x.max(), x) # apply specular reflection
         return d
 
 class PerturbationFactory:
@@ -54,6 +53,7 @@ class PerturbationPipelines:
         return Compose([
             PerturbationFactory.gaussian_noise(p=0.3, std=0.1),
             PerturbationFactory.contrast(p=0.2),
+
         ])
 
     @staticmethod

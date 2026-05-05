@@ -1,0 +1,25 @@
+unet:
+  _target_: monai.networks.nets.UNet
+  spatial_dims: 2
+  in_channels: 3
+  out_channels: 1
+  channels: [16, 32, 64, 128, 256]
+  strides: [2, 2, 2, 2]
+  num_res_units: 2
+
+unet_plus_plus:
+  _target_: monai.networks.nets.BasicUNetPlusPlus
+  spatial_dims: 2
+  in_channels: 3
+  out_channels: 1
+  features: [32, 64, 128, 256, 512]
+
+swin_unet:
+  _target_: models.swin_unet.SwinUNet
+  img_size: [224, 224]
+  in_channels: 3
+  out_channels: 1
+  feature_size: 24
+  depths: [2, 2, 2, 2]
+  num_heads: [3, 6, 12, 24]
+  window_size: 7
