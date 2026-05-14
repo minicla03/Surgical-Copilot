@@ -1,9 +1,11 @@
 # Lifecycle of the training process
 trainer:
-  max_epochs: 20
+  max_epochs: 50
+  accumulation_steps: 3 # in this way we simulate a batchsize of 12
+  eval_freq: 5
   save_checkpoint: True
   num_workers: 4
-  batch_size: 3
+  batch_size: 4
   precision: "16-mixed"
 
 # Optimizer
@@ -25,7 +27,7 @@ scaler:
 
 # Loss Function
 loss:
-  _target_: monai.losses.DiceCELoss
+  _target_: monai.losses.DiceCELoss # Different from Hemoset author that used a CE Loss for N classes
   sigmoid: True
   lambda_dice: 0.5
   lambda_ce: 0.5

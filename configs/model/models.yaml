@@ -3,7 +3,7 @@ unet:
   spatial_dims: 2
   in_channels: 3
   out_channels: 1
-  channels: [16, 32, 64, 128, 256]
+  channels: [32, 64, 128, 256, 512]
   strides: [2, 2, 2, 2]
   num_res_units: 2
 
@@ -12,14 +12,21 @@ unet_plus_plus:
   spatial_dims: 2
   in_channels: 3
   out_channels: 1
-  features: [32, 64, 128, 256, 512]
+  features: [32, 64, 128, 256, 512, 32]
+  deep_supervision: True
 
 swin_unet:
-  _target_: monai.networks.nets.swin_unetr
-  img_size: [512, 512]
-  in_channels: 3
-  out_channels: 1
-  feature_size: 24
-  depths: [2, 2, 2, 2]
-  num_heads: [3, 6, 12, 24]
-  window_size: 7
+    _target_: surgical_copilot.models.vision_trasformer_swin.swin_unet.SwinUnet 
+    img_size: [640, 480]
+    in_chans: 3
+    num_classes: 1
+    window_size: 8
+  
+swin_unetr:
+    _target_: monai.networks.nets.SwinUNETR
+    img_size: [640, 480]
+    in_channels: 3
+    out_channels: 1
+    feature_size: 48
+    spatial_dims: 2 # generally SwinUNETR is used with 3D image. In this way we can manage 2D frame
+    use_checkpoint: True
