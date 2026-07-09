@@ -1,19 +1,16 @@
 import time
 import numpy as np
 import torch
-import wandb
 from tqdm import tqdm
 from pathlib import Path
 
-from monai.metrics.meandice import DiceMetric
-from monai.metrics.hausdorff_distance import HausdorffDistanceMetric
-from monai.metrics.meaniou import MeanIoU
 from monai.transforms.post.array import Activations, AsDiscrete
 from monai.transforms.compose import Compose
 from monai.transforms.post.array import KeepLargestConnectedComponent
 
 from src.surgical_copilot.bench.perturbation import PerturbationPipelines
 from src.surgical_copilot.bench.engine.logger_wandb import WandbLogger
+from src.surgical_copilot.bench.metrics.metrics_manager import MetricsManager
 from src.surgical_copilot.bench.engine.temporal_mode import TemporalMode
 
 
@@ -53,9 +50,7 @@ class BenchmarkEngine:
 
         self.accumulation_steps = self.cfg.trainer.trainer.get("accumulation_steps", 4)
 
-        self.dice_metric = DiceMetric(reduction="mean")
-        self.hd95_metric = HausdorffDistanceMetric(percentile=95)
-        self.iou = MeanIoU(reduction="mean")
+        self.metrics_manager = MetricsManager(device=device)
 
         self.post_pred = Compose([
             Activations(sigmoid=True),
@@ -125,10 +120,27 @@ class BenchmarkEngine:
 
         return preds, labels
 
-    def _update_metrics(self, preds, labels):
-        self.dice_metric(y_pred=preds, y=labels)
-        self.hd95_metric(y_pred=preds, y=labels)
-        self.iou(y_pred=preds, y=labels)
+    def _build_metric_context(self, batch, x):
+        is_first_frame = False
+        if "is_first_frame" in batch:
+            flag = batch["is_first_frame"]
+            if isinstance(flag, torch.Tensor):
+                is_first_frame = bool(flag[0].item())
+            else:
+                is_first_frame = bool(flag)
+
+        return {
+            "images": x,
+            "is_first_frame": is_first_frame
+        }
+
+    def _update_metrics(self, preds, labels, images=None, is_first_frame=False):
+        self.metrics_manager.update(
+            preds=preds,
+            labels=labels,
+            images=images,
+            is_first_frame=is_first_frame
+        )
 
     def _train(self):
 
@@ -190,9 +202,7 @@ class BenchmarkEngine:
                     _ = self.model(dummy_input)
 
         with torch.inference_mode():
-            self.dice_metric.reset()
-            self.hd95_metric.reset()
-            self.iou.reset()
+            self.metrics_manager.reset()
 
             total_model_time, total_images = 0.0, 0
             val_losses = []
@@ -225,7 +235,13 @@ class BenchmarkEngine:
                 val_losses.append(loss.item() * self.accumulation_steps)
                     
                 preds, labels = self._post_processing(logits, y)
-                self._update_metrics(preds, labels)
+                metric_context = self._build_metric_context(batch=batch, x=x)
+                self._update_metrics(
+                    preds=preds,
+                    labels=labels,
+                    images=metric_context["images"],
+                    is_first_frame=metric_context["is_first_frame"]
+                )
 
                 # Log visual results 
                 if not logged_visuals:
@@ -234,17 +250,14 @@ class BenchmarkEngine:
                     is_last_epoch = (epoch == epochs_total - 1)
                     
                     if epoch == 0 or (epoch + 1) % 10 == 0 or is_last_epoch:
-                        if wandb.run is not None:
-                            self.logger.log_qualitative_masks(x, y, preds, "clean", epoch)
+                        self.logger.log_qualitative_masks(x, y, preds, "clean", epoch)
                                                     
                     logged_visuals = True
 
                 total_images += x.shape[0]
             
             metrics["inference_fps"] = total_images / max(total_model_time, 1e-8)
-            metrics["baseline"]["dice"] = self.dice_metric.aggregate().item()
-            metrics["baseline"]["hd95"] = self.hd95_metric.aggregate().item()
-            metrics["baseline"]["iou"] = self.iou.aggregate().item()
+            metrics["baseline"].update(self.metrics_manager.aggregate())
             metrics["val_loss"] = float(np.mean(val_losses))
 
         return metrics
@@ -270,9 +283,7 @@ class BenchmarkEngine:
 
             for scenario_name, pipeline in eval_scenarios.items():
 
-                self.dice_metric.reset()
-                self.hd95_metric.reset()
-                self.iou.reset()
+                self.metrics_manager.reset()
 
                 logged_visuals = False
 
@@ -307,7 +318,13 @@ class BenchmarkEngine:
                     
                     # Post-processing e metriche
                     preds, labels = self._post_processing(main_logits, y)
-                    self._update_metrics(preds, labels)
+                    metric_context = self._build_metric_context(batch=batch, x=x)
+                    self._update_metrics(
+                        preds=preds,
+                        labels=labels,
+                        images=metric_context["images"],
+                        is_first_frame=metric_context["is_first_frame"]
+                    )
 
                     if not logged_visuals:
                         self.logger.log_qualitative_masks(
@@ -320,12 +337,8 @@ class BenchmarkEngine:
 
                         logged_visuals = True
 
-                    scores = {
-                        "dice": self.dice_metric.aggregate().item(),
-                        "hd95": self.hd95_metric.aggregate().item(),
-                        "iou": self.iou.aggregate().item(),
-                        "inference_fps": total_images / max(total_model_time, 1e-8)
-                    }
+                    scores = self.metrics_manager.aggregate()
+                    scores["inference_fps"] = total_images / max(total_model_time, 1e-8)
                     
                     if scenario_name == "clean":
                         metrics["baseline"] = scores
